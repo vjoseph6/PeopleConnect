@@ -11,7 +11,6 @@ import com.capstone.peopleconnect.Client.Fragments.HomeFragmentClient
 import com.capstone.peopleconnect.Client.Fragments.MicFragmentClient
 import com.capstone.peopleconnect.Client.Fragments.ProfileFragmentClient
 import com.capstone.peopleconnect.R
-import com.capstone.peopleconnect.databinding.ActivityClientMainBinding
 
 class ClientMainActivity : AppCompatActivity() {
 

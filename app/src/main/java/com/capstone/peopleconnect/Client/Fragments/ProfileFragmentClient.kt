@@ -9,8 +9,17 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import com.capstone.peopleconnect.Classes.User
 import com.capstone.peopleconnect.R
+import com.capstone.peopleconnect.SProvider.Fragments.MyProfileFragmentSProvider
+import com.capstone.peopleconnect.SProvider.Fragments.ProfileFragmentSProvider
+import com.capstone.peopleconnect.SPrvoider.Fragments.LocationFragmentSProvider
 import com.google.android.material.imageview.ShapeableImageView
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.Query
+import com.google.firebase.database.ValueEventListener
 import com.squareup.picasso.Picasso
 
 class ProfileFragmentClient : Fragment() {
@@ -22,6 +31,9 @@ class ProfileFragmentClient : Fragment() {
     private var email: String? = null
     private var profileImageUrl: String? = null
 
+    private lateinit var userQuery: Query
+    private lateinit var valueEventListener: ValueEventListener
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         arguments?.let {
@@ -32,6 +44,15 @@ class ProfileFragmentClient : Fragment() {
             email = it.getString("EMAIL")
             profileImageUrl = it.getString("PROFILE_IMAGE_URL")
         }
+
+        email?.let {
+            userQuery = FirebaseDatabase.getInstance().getReference("users")
+                .orderByChild("email").equalTo(it)
+        } ?: run {
+            // Handle case when email is null
+            // Consider showing an error or using a default value
+        }
+
     }
 
     override fun onCreateView(
@@ -43,37 +64,55 @@ class ProfileFragmentClient : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        setupProfile(view)
+    }
 
-        // Initialize UI elements
-        val profileImageView: ShapeableImageView = view.findViewById(R.id.ivProfileImage)
-        val nameTextView: TextView = view.findViewById(R.id.tvName)
-        val emailTextView: TextView = view.findViewById(R.id.tvEmail)
-        val locationTextView: TextView = view.findViewById(R.id.tvLocation)
-        val bookingCountTextView: TextView = view.findViewById(R.id.tvBookingCount)
+    override fun onStart() {
+        super.onStart()
 
-        // Set values to UI elements
-        val fullName = "$firstName $middleName $lastName"
-        nameTextView.text = fullName
-        emailTextView.text = email
-        locationTextView.text = userAddress
+        valueEventListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    val data = snapshot.children.firstOrNull()
+                    val user = data?.getValue(User::class.java)
+                    user?.let {
+                        updateUI(user)
+                    }
+                }
+            }
 
-        // Load profile image using Picasso
-        profileImageUrl?.let {
-            Picasso.get()
-                .load(it)
-                .placeholder(R.drawable.profile) // Placeholder image
-                .error(R.drawable.profile) // Error image
-                .into(profileImageView)
+            override fun onCancelled(error: DatabaseError) {
+                // Handle possible errors
+                // Consider showing a user-friendly message
+            }
         }
+        userQuery.addValueEventListener(valueEventListener)
+    }
 
+    override fun onStop() {
+        super.onStop()
+        userQuery.removeEventListener(valueEventListener)
+    }
 
+    private fun setupProfile(view: View) {
+        val tvName: TextView = view.findViewById(R.id.tvName)
+        val tvEmail: TextView = view.findViewById(R.id.tvEmail)
+        val address: TextView = view.findViewById(R.id.tvLocation)
+        val ivProfileImage: ShapeableImageView = view.findViewById(R.id.ivProfileImage)
 
+        // Set default values or placeholders if needed
+        tvName.text = ""
+        address.text = ""
+        tvEmail.text = ""
+        ivProfileImage.setImageResource(R.drawable.profile) // Placeholder
+
+        // Profile icons
         val profileIcons: LinearLayout = view.findViewById(R.id.profileMenuLayout)
         profileIcons.setOnClickListener {
             val profileFragment = MyProfileFragmentClient.newInstance(
                 firstName = firstName,
                 middleName = middleName,
-                lastName = lastName,
+                lastName = lastName ,
                 email = email,
                 profileImageUrl = profileImageUrl
             )
@@ -83,9 +122,10 @@ class ProfileFragmentClient : Fragment() {
                 .commit()
         }
 
+        // Location icons
         val locationIcons: LinearLayout = view.findViewById(R.id.locationMenuLayout)
         locationIcons.setOnClickListener {
-            val locationFragment = LocationFragmentClient()
+            val locationFragment = LocationFragmentSProvider()
             parentFragmentManager.beginTransaction()
                 .replace(R.id.frame_layout, locationFragment)
                 .addToBackStack(null)
@@ -93,24 +133,37 @@ class ProfileFragmentClient : Fragment() {
         }
     }
 
+    private fun updateUI(user: User) {
+        view?.let { view ->
+            val tvName: TextView = view.findViewById(R.id.tvName)
+            val tvEmail: TextView = view.findViewById(R.id.tvEmail)
+            val address: TextView = view.findViewById(R.id.tvLocation)
+            val ivProfileImage: ShapeableImageView = view.findViewById(R.id.ivProfileImage)
+
+            val fullName = "${user.firstName} ${user.middleName} ${user.lastName}".trim()
+            tvName.text = fullName
+            address.text = user.address
+            tvEmail.text = user.email
+
+            Picasso.get()
+                .load(user.profileImageUrl)
+                .placeholder(R.drawable.profile)
+                .error(R.drawable.profile)
+                .into(ivProfileImage)
+        }
+    }
+
     companion object {
         @JvmStatic
-        fun newInstance(
-            firstName: String?,
-            middleName: String?,
-            lastName: String?,
-            userAddress: String?,
-            email: String?,
-            profileImageUrl: String?
-        ) = ProfileFragmentClient().apply {
-            arguments = Bundle().apply {
-                putString("FIRST_NAME", firstName)
-                putString("MIDDLE_NAME", middleName)
-                putString("LAST_NAME", lastName)
-                putString("USER_ADDRESS", userAddress)
-                putString("EMAIL", email)
-                putString("PROFILE_IMAGE_URL", profileImageUrl)
+        fun newInstance(firstName: String?, middleName: String?, lastName: String?, email: String?, profileImageUrl: String?) =
+            ProfileFragmentClient().apply {
+                arguments = Bundle().apply {
+                    putString("FIRST_NAME", firstName)
+                    putString("MIDDLE_NAME", middleName)
+                    putString("LAST_NAME", lastName)
+                    putString("EMAIL", email)
+                    putString("PROFILE_IMAGE_URL", profileImageUrl)
+                }
             }
-        }
     }
 }

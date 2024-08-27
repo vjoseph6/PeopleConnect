@@ -72,6 +72,7 @@ class C7ChoosingInterestClient : AppCompatActivity() {
                 // Handle interest selection here
                 updateSelectedInterests(selectedInterest)
             }
+
             adapter = interestsAdapter
         }
 
@@ -175,4 +176,5 @@ class C7ChoosingInterestClient : AppCompatActivity() {
                 }
             })
     }
+
 }

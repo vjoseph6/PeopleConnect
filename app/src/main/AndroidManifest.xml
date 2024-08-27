@@ -15,21 +15,39 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.PeopleConnect"
         tools:targetApi="31">
-
         <activity
-            android:name=".SPrvoider.SProviderMainActivity"
+            android:name=".SPrvoider.SProviderViewPager"
             android:exported="false">
 
+<!--            <intent-filter>-->
+<!--                <action android:name="android.intent.action.MAIN" />-->
+
+<!--                <category android:name="android.intent.category.LAUNCHER" />-->
+<!--            </intent-filter>-->
 
         </activity>
         <activity
+            android:name=".Client.ClientViewPager"
+            android:exported="false">
+<!--            <intent-filter>-->
+<!--                <action android:name="android.intent.action.MAIN" />-->
+
+<!--                <category android:name="android.intent.category.LAUNCHER" />-->
+<!--            </intent-filter>-->
+        </activity>
+        <activity
+            android:name=".SPrvoider.SProviderMainActivity"
+            android:exported="false" />
+        <activity
             android:name=".Client.ClientMainActivity"
             android:exported="false">
-            <!--            <intent-filter>-->
-            <!--                <action android:name="android.intent.action.MAIN" />-->
 
-            <!--                <category android:name="android.intent.category.LAUNCHER" />-->
-            <!--            </intent-filter>-->
+            <!-- <intent-filter> -->
+            <!-- <action android:name="android.intent.action.MAIN" /> -->
+
+
+            <!-- <category android:name="android.intent.category.LAUNCHER" /> -->
+            <!-- </intent-filter> -->
         </activity>
         <activity
             android:name=".SelectAccount"
@@ -41,7 +59,6 @@
 
              <category android:name="android.intent.category.LAUNCHER" />
              </intent-filter>
-
         </activity>
         <activity
             android:name=".Client.C7ChoosingInterestClient"

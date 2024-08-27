@@ -22,9 +22,12 @@ class InterestAdapter(
 
         fun bind(interest: Interest) {
             interestNameTextView.text = interest.name
+
+            // Temporarily remove the listener before updating the checkbox state
+            checkBox.setOnCheckedChangeListener(null)
             checkBox.isChecked = selectedInterests.contains(interest.name)
 
-            // Update selection state on checkbox click
+            // Reassign the listener to handle user interactions
             checkBox.setOnCheckedChangeListener { _, isChecked ->
                 if (isChecked) {
                     selectedInterests.add(interest.name)

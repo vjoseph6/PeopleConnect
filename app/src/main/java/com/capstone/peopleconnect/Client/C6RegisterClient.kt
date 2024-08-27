@@ -176,11 +176,11 @@ class C6RegisterClient : AppCompatActivity() {
                     .addOnCompleteListener { task ->
                         if (task.isSuccessful) {
                             // User created successfully, now save user data in the Realtime Database
-                            saveUserData(name, email, pass, address)
+                            saveUserData(fName, mName, lName, name, email, pass, address)
                         } else {
                             if (task.exception is FirebaseAuthUserCollisionException) {
                                 // Handle case where email is already used but maybe with a different role
-                                checkExistingRoleAndPrompt(email, pass, name, address)
+                                checkExistingRoleAndPrompt(fName, mName, lName, name, email, pass, address)
                             } else {
                                 progressBar.visibility = View.GONE
                                 Toast.makeText(this, "Failed to register: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
@@ -216,7 +216,7 @@ class C6RegisterClient : AppCompatActivity() {
 
 
 
-    private fun checkExistingRoleAndPrompt(email: String, pass: String, name: String, address: String) {
+    private fun checkExistingRoleAndPrompt(fName: String, mName: String, lName: String, name: String, email: String, password: String, address: String){
         databaseReference.orderByChild("email").equalTo(email).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (snapshot.exists()) {
@@ -232,14 +232,14 @@ class C6RegisterClient : AppCompatActivity() {
                     }
                     if (roleMismatch) {
                         // Show a dialog to the user to unify accounts
-                        showUnifyAccountDialog(email, pass, name, address)
+                        showUnifyAccountDialog(email, password, name, address)
                     } else {
                         progressBar.visibility = View.GONE
                         Toast.makeText(this@C6RegisterClient, "Email already registered with the same role.", Toast.LENGTH_SHORT).show()
                     }
                 } else {
                     // Email does not exist in the database but exists in Auth (which is rare but possible)
-                    saveUserData(name, email, pass, address)
+                    saveUserData(fName, mName, lName, name, email, password, address)
                 }
             }
 
@@ -297,12 +297,12 @@ class C6RegisterClient : AppCompatActivity() {
         })
     }
 
-    private fun saveUserData(name: String, email: String, password: String, address: String) {
+    private fun saveUserData(fName: String, mName: String, lName: String, name: String, email: String, password: String, address: String) {
         val uid = auth.currentUser?.uid
         userRole = "Client"
         if (uid != null) {
             Log.d("Value of User Role","$userRole")
-            val user = User(name = name, email = email, address = address, roles = listOf(userRole))
+            val user = User(firstName = fName, middleName = mName, lastName = lName, name = name, email = email, address = address, roles = listOf(userRole))
             databaseReference.child(uid).setValue(user)
                 .addOnCompleteListener { task ->
                     if (task.isSuccessful) {

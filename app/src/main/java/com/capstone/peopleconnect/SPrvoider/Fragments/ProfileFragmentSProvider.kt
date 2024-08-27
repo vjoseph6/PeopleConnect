@@ -9,7 +9,6 @@ import android.widget.TextView
 import androidx.fragment.app.Fragment
 import com.capstone.peopleconnect.Classes.User
 import com.capstone.peopleconnect.R
-import com.capstone.peopleconnect.SProvider.Fragments.MyProfileFragmentSProvider
 import com.capstone.peopleconnect.SPrvoider.Fragments.LocationFragmentSProvider
 import com.google.android.material.imageview.ShapeableImageView
 import com.google.firebase.database.DataSnapshot

@@ -9,7 +9,6 @@ import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.text.InputFilter
-import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
@@ -21,7 +20,6 @@ import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.capstone.peopleconnect.Classes.User
-import com.capstone.peopleconnect.Client.C5LoginClient
 import com.capstone.peopleconnect.R
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -159,7 +157,7 @@ class SP6RegisterSProvider : AppCompatActivity() {
         val address = addressEt.text.toString().trim()
         val name = "$fName $mName $lName"
 
-        if (fName.isEmpty() || mName.isEmpty() || lName.isEmpty() || name.isEmpty() || email.isEmpty() || pass.isEmpty() || confirmPass.isEmpty() || address.isEmpty()) {
+        if (fName.isEmpty() || mName.isEmpty() || lName.isEmpty() || email.isEmpty() || pass.isEmpty() || confirmPass.isEmpty() || address.isEmpty()) {
             Toast.makeText(this, "Please fill in all the fields.", Toast.LENGTH_SHORT).show()
             return
         }
@@ -174,46 +172,24 @@ class SP6RegisterSProvider : AppCompatActivity() {
             return
         }
 
+        progressBar.visibility = View.VISIBLE
+
         // Check if email already exists
         auth.createUserWithEmailAndPassword(email, pass)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     // User created successfully, now save user data in the Realtime Database
-                    saveUserData(name, email, pass, address)
+                    saveUserData(name, fName, mName, lName, email, pass, address)
                 } else {
                     if (task.exception is FirebaseAuthUserCollisionException) {
                         // Email already exists, check for existing role and prompt the user
-                        checkExistingRoleAndPrompt(email, pass, name, address)
+                        checkExistingRoleAndPrompt(name, email, pass, fName, mName, lName, address)
                     } else {
                         progressBar.visibility = View.GONE
                         Toast.makeText(this, "Failed to register: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
-        checkExistingAccount(email) { exists ->
-            if (exists) {
-                progressBar.visibility = View.GONE
-                Toast.makeText(this, "An account with this email and role already exists.", Toast.LENGTH_SHORT).show()
-            } else {
-                // Proceed with user registration
-                auth.createUserWithEmailAndPassword(email, pass)
-                    .addOnCompleteListener { task ->
-                        if (task.isSuccessful) {
-                            // User created successfully, now save user data in the Realtime Database
-                            saveUserData(name, email, pass, address)
-                        } else {
-                            if (task.exception is FirebaseAuthUserCollisionException) {
-                                // Handle case where email is already used but maybe with a different role
-                                checkExistingRoleAndPrompt(email, pass, name, address)
-                            } else {
-                                progressBar.visibility = View.GONE
-                                Toast.makeText(this, "Failed to register: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    }
-            }
-        }
-
     }
 
     private fun checkExistingAccount(email: String, callback: (Boolean) -> Unit) {
@@ -239,15 +215,14 @@ class SP6RegisterSProvider : AppCompatActivity() {
         })
     }
 
-    private fun checkExistingRoleAndPrompt(email: String, pass: String, name: String, address: String) {
-
+    private fun checkExistingRoleAndPrompt(name: String, email: String, pass: String, fName: String, mName: String, lName: String, address: String) {
+        progressBar.visibility = View.VISIBLE
         databaseReference.orderByChild("email").equalTo(email).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (snapshot.exists()) {
                     var roleMismatch = false
                     for (userSnapshot in snapshot.children) {
                         val user = userSnapshot.getValue(User::class.java)
-                        // Check if the userRoles list contains the userRole
                         val userRoles = user?.roles ?: listOf()
                         if (!userRoles.contains(userRole)) {
                             roleMismatch = true
@@ -256,14 +231,14 @@ class SP6RegisterSProvider : AppCompatActivity() {
                     }
                     if (roleMismatch) {
                         // Show a dialog to the user to unify accounts
-                        showUnifyAccountDialog(email, pass, name, address)
+                        showUnifyAccountDialog(name, email, pass, fName, mName, lName, address)
                     } else {
                         progressBar.visibility = View.GONE
                         Toast.makeText(this@SP6RegisterSProvider, "Email already registered with the same role.", Toast.LENGTH_SHORT).show()
                     }
                 } else {
                     // Email does not exist in the database but exists in Auth (which is rare but possible)
-                    saveUserData(name, email, pass, address)
+                    saveUserData(name, fName, mName, lName, email, pass, address)
                 }
             }
 
@@ -274,25 +249,22 @@ class SP6RegisterSProvider : AppCompatActivity() {
         })
     }
 
-    private fun showUnifyAccountDialog(email: String, pass: String, name: String, address: String) {
-
+    private fun showUnifyAccountDialog(name: String, email: String, pass: String, fName: String, mName: String, lName: String, address: String) {
         val builder = android.app.AlertDialog.Builder(this)
         builder.setTitle("Account Already Exists")
         builder.setMessage("An account with this email already exists with a different role. Would you like to unify your roles under the same account?")
         builder.setPositiveButton("Yes") { _, _ ->
             // Unify roles
-            unifyAccount(email, name, address)
+            unifyAccount(name, email, fName, mName, lName, address)
         }
         builder.setNegativeButton("No") { dialog, _ ->
             dialog.dismiss()
             progressBar.visibility = View.GONE
         }
         builder.show()
-
     }
 
-    private fun unifyAccount(email: String, name: String, address: String) {
-
+    private fun unifyAccount(name: String, email: String, fName: String, mName: String, lName: String, address: String) {
         databaseReference.orderByChild("email").equalTo(email).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (snapshot.exists()) {
@@ -301,13 +273,12 @@ class SP6RegisterSProvider : AppCompatActivity() {
                         val updatedRoles = existingRoles.toMutableList().apply { add(userRole) }
                         userSnapshot.ref.child("roles").setValue(updatedRoles)
                             .addOnCompleteListener { task ->
+                                progressBar.visibility = View.GONE
                                 if (task.isSuccessful) {
                                     Toast.makeText(this@SP6RegisterSProvider, "Role added successfully.", Toast.LENGTH_SHORT).show()
-                                    progressBar.visibility = View.GONE
                                     val intent = Intent(this@SP6RegisterSProvider, SP5LoginSProvider::class.java)
                                     startActivity(intent)
                                 } else {
-                                    progressBar.visibility = View.GONE
                                     Toast.makeText(this@SP6RegisterSProvider, "Failed to unify account: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
                                 }
                             }
@@ -320,16 +291,21 @@ class SP6RegisterSProvider : AppCompatActivity() {
                 Toast.makeText(this@SP6RegisterSProvider, "Database Error: ${error.message}", Toast.LENGTH_SHORT).show()
             }
         })
-
     }
 
-    private fun saveUserData(name: String, email: String, pass: String, address: String) {
-
+    private fun saveUserData(name: String, fName: String, mName: String, lName: String, email: String, pass: String, address: String) {
         val uid = auth.currentUser?.uid
         userRole = "Service Provider"
         if (uid != null) {
-            Log.d("Value of User Role","$userRole")
-            val user = User(name = name, email = email, address = address, roles = listOf(userRole))
+            val user = User(
+                firstName = fName,
+                middleName = mName,
+                lastName = lName,
+                email = email,
+                address = address,
+                name = name,
+                roles = listOf(userRole)
+            )
             databaseReference.child(uid).setValue(user)
                 .addOnCompleteListener { task ->
                     if (task.isSuccessful) {
@@ -340,49 +316,43 @@ class SP6RegisterSProvider : AppCompatActivity() {
                     }
                 }
         }
-
     }
 
     private fun uploadProfileImage(uid: String) {
-
-        selectedImageUri?.let { uri ->
-            val profileImageRef = storageReference.child("$uid.jpg")
-            profileImageRef.putFile(uri)
-                .addOnSuccessListener {
-                    profileImageRef.downloadUrl.addOnSuccessListener { downloadUri ->
-                        databaseReference.child(uid).child("profileImageUrl").setValue(downloadUri.toString())
-                            .addOnCompleteListener { task ->
-                                progressBar.visibility = View.GONE
-                                if (task.isSuccessful) {
-                                    Toast.makeText(this, "Registration Successful.", Toast.LENGTH_SHORT).show()
-                                    val intent = Intent(this, SP5LoginSProvider::class.java)
-                                    startActivity(intent)
-                                    finish()
-                                } else {
-                                    Toast.makeText(this, "Failed to upload profile image: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
-                                }
+        selectedImageUri?.let { imageUri ->
+            val imageRef = storageReference.child("$uid.jpg")
+            imageRef.putFile(imageUri).addOnSuccessListener {
+                imageRef.downloadUrl.addOnSuccessListener { uri ->
+                    val imageUrl = uri.toString()
+                    databaseReference.child(uid).child("profileImageUrl").setValue(imageUrl)
+                        .addOnCompleteListener { task ->
+                            progressBar.visibility = View.GONE
+                            if (task.isSuccessful) {
+                                val intent = Intent(this, SP5LoginSProvider::class.java)
+                                Toast.makeText(this, "Registered Successfully", Toast.LENGTH_SHORT).show()
+                                startActivity(intent)
+                            } else {
+                                Toast.makeText(this, "Failed to upload profile image: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
                             }
-                    }
+                        }
                 }
-                .addOnFailureListener { exception ->
-                    progressBar.visibility = View.GONE
-                    Toast.makeText(this, "Failed to upload profile image: ${exception.message}", Toast.LENGTH_SHORT).show()
-                }
+            }.addOnFailureListener {
+                progressBar.visibility = View.GONE
+                Toast.makeText(this, "Failed to upload image: ${it.message}", Toast.LENGTH_SHORT).show()
+            }
         }
-
-
     }
-    
 
     private fun openGalleryForImage() {
-        val intent = Intent(Intent.ACTION_PICK)
-        intent.type = "image/*"
-        startActivityForResult(intent, IMAGE_PICK_CODE)
+        val intent = Intent(Intent.ACTION_PICK).apply {
+            type = "image/*"
+        }
+        startActivityForResult(intent, GALLERY_REQUEST_CODE)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == IMAGE_PICK_CODE && resultCode == RESULT_OK && data != null) {
+        if (requestCode == GALLERY_REQUEST_CODE && resultCode == RESULT_OK && data != null) {
             selectedImageUri = data.data
             profileImage.setImageURI(selectedImageUri)
         }
@@ -396,19 +366,8 @@ class SP6RegisterSProvider : AppCompatActivity() {
         ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), LOCATION_PERMISSION_REQUEST_CODE)
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                getCurrentLocation()
-            } else {
-                Toast.makeText(this, "Location permission required", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
     companion object {
-        private const val IMAGE_PICK_CODE = 1000
-        private const val LOCATION_PERMISSION_REQUEST_CODE = 2000
+        private const val GALLERY_REQUEST_CODE = 1001
+        private const val LOCATION_PERMISSION_REQUEST_CODE = 1002
     }
 }

@@ -188,18 +188,45 @@ class SP5LoginSProvider : AppCompatActivity() {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     if (snapshot.exists()) {
                         var isServiceProvider = false
+                        var userName = ""
+                        var userAddress = ""
+                        var profileImageUrl = ""
+                        var fName = ""
+                        var mName = ""
+                        var lName = ""
+
                         for (userSnapshot in snapshot.children) {
                             val user = userSnapshot.getValue(User::class.java)
                             val userRoles = user?.roles ?: listOf()
                             if (userRoles.contains("Service Provider")) {
                                 isServiceProvider = true
+                                userName = user?.name ?: ""
+                                fName = user?.firstName ?: ""
+                                mName = user?.middleName ?: ""
+                                lName = user?.lastName ?: ""
+                                userAddress = user?.address ?: ""
+                                profileImageUrl = user?.profileImageUrl ?: ""
                                 break
                             }
                         }
+
                         if (isServiceProvider) {
-                            // User is a Service Provider, proceed to the next screen
-                            saveCurrentUser(email)
-                            startActivity(Intent(this@SP5LoginSProvider, SP1WelcomeSProvider::class.java))
+
+                            // Save current user details in shared preferences
+                            saveCurrentUser(email, userName, userAddress, profileImageUrl)
+
+                            // Pass user details to the next activity
+                            val intent = Intent(this@SP5LoginSProvider, SProviderMainActivity::class.java).apply {
+                                putExtra("USER_NAME", userName)
+                                putExtra("FIRST_NAME", fName)
+                                putExtra("MIDDLE_NAME", mName)
+                                putExtra("LAST_NAME", lName)
+                                putExtra("USER_ADDRESS", userAddress)
+                                putExtra("EMAIL", email)
+                                putExtra("PROFILE_IMAGE_URL", profileImageUrl)
+                            }
+                            Toast.makeText(this@SP5LoginSProvider, "Welcome Service Provider $fName", Toast.LENGTH_SHORT).show()
+                            startActivity(intent)
                         } else {
                             // User is not a Service Provider
                             Toast.makeText(this@SP5LoginSProvider, "User does not exist", Toast.LENGTH_SHORT).show()
@@ -215,6 +242,19 @@ class SP5LoginSProvider : AppCompatActivity() {
                 }
             })
     }
+
+    private fun saveCurrentUser(email: String, firstName: String, address: String, profileImageUrl: String) {
+        // Save the current user's details in shared preferences
+        val sharedPref = getSharedPreferences("com.capstone.peopleconnect.PREFERENCE_FILE_KEY", Context.MODE_PRIVATE)
+        with(sharedPref.edit()) {
+            putString("currentEmail", email)
+            putString("currentFirstName", firstName)
+            putString("currentAddress", address)
+            putString("currentProfileImageUrl", profileImageUrl)
+            apply()
+        }
+    }
+
 
 
     private fun handleSignInError(exception: Exception?) {

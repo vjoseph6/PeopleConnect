@@ -14,7 +14,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.capstone.peopleconnect.Classes.User
 import com.capstone.peopleconnect.R
-import com.capstone.peopleconnect.SPrvoider.SP1WelcomeSProvider
+import com.capstone.peopleconnect.SPrvoider.SProviderMainActivity
 import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import com.google.firebase.auth.FirebaseAuth
@@ -207,24 +207,50 @@ class C5LoginClient : AppCompatActivity() {
     }
 
     private fun checkUserRoles(email: String) {
-
         databaseReference.orderByChild("email").equalTo(email)
             .addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     if (snapshot.exists()) {
-                        var isServiceProvider = false
+                        var isClient = false
+                        var userName = ""
+                        var userAddress = ""
+                        var profileImageUrl = ""
+                        var fName = ""
+                        var mName = ""
+                        var lName = ""
+
                         for (userSnapshot in snapshot.children) {
                             val user = userSnapshot.getValue(User::class.java)
                             val userRoles = user?.roles ?: listOf()
                             if (userRoles.contains("Client")) {
-                                isServiceProvider = true
+                                isClient = true
+                                userName = user?.name ?: ""
+                                fName = user?.firstName ?: ""
+                                mName = user?.middleName ?: ""
+                                lName = user?.lastName ?: ""
+                                userAddress = user?.address ?: ""
+                                profileImageUrl = user?.profileImageUrl ?: ""
                                 break
                             }
                         }
-                        if (isServiceProvider) {
-                            // User is a Service Provider, proceed to the next screen
-                            saveCurrentUser(email)
-                            startActivity(Intent(this@C5LoginClient, ClientMainActivity::class.java))
+
+                        if (isClient) {
+
+                            // Save current user details in shared preferences
+                            saveCurrentUser(email, userName, userAddress, profileImageUrl)
+
+                            // Pass user details to the next activity
+                            val intent = Intent(this@C5LoginClient, C7ChoosingInterestClient::class.java).apply {
+                                putExtra("USER_NAME", userName)
+                                putExtra("FIRST_NAME", fName)
+                                putExtra("MIDDLE_NAME", mName)
+                                putExtra("LAST_NAME", lName)
+                                putExtra("USER_ADDRESS", userAddress)
+                                putExtra("EMAIL", email)
+                                putExtra("PROFILE_IMAGE_URL", profileImageUrl)
+                            }
+                            Toast.makeText(this@C5LoginClient, "Welcome Client $fName", Toast.LENGTH_SHORT).show()
+                            startActivity(intent)
                         } else {
                             // User is not a Service Provider
                             Toast.makeText(this@C5LoginClient, "User does not exist", Toast.LENGTH_SHORT).show()
@@ -259,11 +285,14 @@ class C5LoginClient : AppCompatActivity() {
     }
 
 
-    private fun saveCurrentUser(email: String) {
-        // Save the current user's email in shared preferences
+    private fun saveCurrentUser(email: String, firstName: String, address: String, profileImageUrl: String) {
+        // Save the current user's details in shared preferences
         val sharedPref = getSharedPreferences("com.capstone.peopleconnect.PREFERENCE_FILE_KEY", Context.MODE_PRIVATE)
         with(sharedPref.edit()) {
             putString("currentEmail", email)
+            putString("currentFirstName", firstName)
+            putString("currentAddress", address)
+            putString("currentProfileImageUrl", profileImageUrl)
             apply()
         }
     }
